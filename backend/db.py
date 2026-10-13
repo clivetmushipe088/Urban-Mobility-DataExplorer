@@ -3,7 +3,7 @@ from contextlib import contextmanager
 
 import config
 
-TABLES = {"zones", "trips", "exclusive_log"}
+TABLES = ("zone", "trips", "exclusion_log")
 
 @contextmanager
 def get_connection(path=None):
@@ -17,9 +17,9 @@ def get_connection(path=None):
         conn.close()    
 
 
-def inti_db(reset: bool = False) -> None:
+def init_db(reset: bool = False) -> None:
     """Create the database file and tables. reset=True deletes the existing file first"""
-    config.DB_PATH.parent.mkdir(parent=True, exist_ok=True)
+    config.DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     if reset and config.DB_PATH.exists():
         config.DB_PATH.unlink()
     with get_connection() as conn:

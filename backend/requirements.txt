@@ -3,3 +3,5 @@ flask-cors>=4.0
 pandas>=2.0
 pyarrow>=15.0
 pytest>=8.0
+pyshp>=2.3
+pyproj>=3.6
