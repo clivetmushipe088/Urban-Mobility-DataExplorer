@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CityPulse - NYC Taxi Explorer</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+  <script src="app.js" defer></script>
+  <script src="charts.js" defer></script>
+  <script src="tables.js" defer></script>
+</head>
+<body>
+<!-- ===================================================== title bar + formula bar -->
+<header class="titlebar">
+  <div class="brand">
+    <span class="app-icon" aria-hidden="true">C</span>
+    <h1>CityPulse</h1>
+    <span class="file">NYC yellow taxi trips - January 2019</span>
+  </div>
+  <p class="connection"><span id="status-dot" class="dot"></span><span id="status-text">Connecting...</span></p>
+</header>
+
+<div class="formula-bar" aria-label="Active filters">
+  <span class="name-box">Overview</span>
+  <span class="fx" aria-hidden="true">fx</span>
+  <span id="formula">=FILTER(Trips)</span>
+</div>
+
+<div class="app">
+
+  <!-- ===================================================== sidebar: filters -->
+  <aside class="sidebar">
+    <p class="pane-title">Filters</p>
+    <form id="filters" novalidate>
+      <label for="f-borough">Pickup borough</label>
+      <select id="f-borough" name="borough">
+        <option value="">All boroughs</option>
+      </select>
+
+      <fieldset>
+        <legend>Pickup date</legend>
+        <div class="pair dates">
+          <input type="date" name="start_date" aria-label="From date" min="2019-01-01" max="2019-01-31">
+          <input type="date" name="end_date" aria-label="To date" min="2019-01-01" max="2019-01-31">
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Pickup hour (0-23)</legend>
+        <div class="pair">
+          <input type="number" name="hour_from" min="0" max="23" placeholder="from" aria-label="From hour">
+          <input type="number" name="hour_to" min="0" max="23" placeholder="to" aria-label="To hour">
+        </div>
+        <p class="hint">22 to 4 wraps past midnight.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Fare ($)</legend>
+        <div class="pair">
+          <input type="number" name="min_fare" min="0" step="0.5" placeholder="min" aria-label="Minimum fare">
+          <input type="number" name="max_fare" min="0" step="0.5" placeholder="max" aria-label="Maximum fare">
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Distance (miles)</legend>
+        <div class="pair">
+          <input type="number" name="min_distance" min="0" step="0.5" placeholder="min" aria-label="Minimum distance">
+          <input type="number" name="max_distance" min="0" step="0.5" placeholder="max" aria-label="Maximum distance">
+        </div>
+      </fieldset>
+
+      <label for="f-passengers">Passengers</label>
+      <select id="f-passengers" name="passengers">
+        <option value="">Any</option>
+        <option>1</option><option>2</option><option>3</option>
+        <option>4</option><option>5</option><option>6</option>
+      </select>
+
+      <p id="filter-error" class="form-error" role="alert" hidden></p>
+
+      <div class="actions">
+        <button type="submit" class="primary">Apply filters</button>
+        <button type="reset">Reset</button>
+      </div>
+    </form>
+  </aside>
+
+  <!-- ===================================================== main content -->
+  <main>
+    <div id="banner" class="banner" role="alert" hidden>
+      <span id="banner-text"></span>
+      <button type="button" id="banner-retry">Retry</button>
+    </div>
+
+    <header class="page-head">
+      <div>
+        <h2>January 2019 at a glance</h2>
+        <p id="sample-note" class="muted"></p>
+      </div>
+      <p id="last-updated" class="muted"></p>
+    </header>
+
+    <!-- KPI cards: values come from /api/summary with the current filters -->
+    <section class="kpis card-plain" data-widget="summary" aria-label="Key figures">
+      <article class="tile"><p class="label">Trips</p><p class="value" id="kpi-trips">-</p><p class="sub">estimated for the month</p></article>
+      <article class="tile"><p class="label">Revenue</p><p class="value" id="kpi-revenue">-</p><p class="sub">total charged, estimated</p></article>
+      <article class="tile"><p class="label">Average fare</p><p class="value" id="kpi-fare">-</p><p class="sub">meter fare, excl. tips</p></article>
+      <article class="tile"><p class="label">Average distance</p><p class="value" id="kpi-distance">-</p><p class="sub">miles per trip</p></article>
+      <article class="tile"><p class="label">Average speed</p><p class="value" id="kpi-speed">-</p><p class="sub">pickup to dropoff</p></article>
+      <article class="tile"><p class="label">Average tip</p><p class="value" id="kpi-tip">-</p><p class="sub">of fare, card trips only</p></article>
+      <p class="card-status" role="status"></p>
+    </section>
+
+    <!-- ================================================= sheet: Overview -->
+    <div class="sheet" data-sheet="overview">
+      <section class="grid-2" data-widget="hourly">
+        <article class="card">
+          <h3 class="card-head">Trips by pickup hour</h3>
+          <div class="card-body chart-box"><canvas id="chart-trips-hour" role="img" aria-label="Bar chart of trips for each pickup hour"></canvas></div>
+        </article>
+        <article class="card">
+          <h3 class="card-head">Average speed by pickup hour (congestion)</h3>
+          <div class="card-body chart-box"><canvas id="chart-speed-hour" role="img" aria-label="Line chart of average trip speed for each pickup hour"></canvas></div>
+        </article>
+        <p class="card-status" role="status"></p>
+      </section>
+
+      <section class="grid-2">
+        <article class="card" data-widget="heatmap">
+          <h3 class="card-head">Average trips per hour, by weekday</h3>
+          <div class="card-body">
+            <div id="heatmap" class="heatmap" role="img" aria-label="Heatmap of average trips for each weekday and hour"></div>
+            <p id="heatmap-scale" class="scale"></p>
+          </div>
+          <p class="card-status" role="status"></p>
+        </article>
+        <article class="card">
+          <h3 class="card-head">Highlights</h3>
+          <ul id="highlights" class="card-body highlights"><li class="muted">Loading...</li></ul>
+        </article>
+      </section>
+
+      <section class="grid-2">
+        <article class="card" data-widget="boroughs">
+          <h3 class="card-head">Trips by pickup borough</h3>
+          <div class="card-body chart-box"><canvas id="chart-borough" role="img" aria-label="Bar chart of trips for each pickup borough"></canvas></div>
+          <p class="card-status" role="status"></p>
+        </article>
+        <article class="card" data-widget="fares">
+          <h3 class="card-head">Fare distribution</h3>
+          <div class="card-body chart-box"><canvas id="chart-fare" role="img" aria-label="Histogram of meter fares"></canvas></div>
+          <p class="card-status" role="status"></p>
+        </article>
+      </section>
+
+      <section class="card" data-widget="routes">
+        <h3 class="card-head">Top 10 routes <span class="muted">(ranked by our hand-written min-heap)</span></h3>
+        <div class="table-wrap">
+          <table class="sheet-table">
+            <thead><tr><th>#</th><th>From</th><th>To</th><th class="num">Trips</th><th class="num">Avg fare</th><th class="num">Avg minutes</th><th class="num">Avg miles</th></tr></thead>
+            <tbody id="routes-body"></tbody>
+          </table>
+        </div>
+        <p class="card-status" role="status"></p>
+      </section>
+    </div>
+
+    <!-- ================================================= sheet: Zone map -->
+    <div class="sheet" data-sheet="map" hidden>
+      <section class="card" data-widget="map">
+        <div class="card-head toolbar">
+          <span>Taxi zones</span>
+          <label>Colour by
+            <select id="map-metric">
+              <option value="trips">Trips</option>
+              <option value="avg_fare">Average fare</option>
+              <option value="avg_speed_mph">Average speed</option>
+              <option value="avg_tip_pct">Average tip %</option>
+            </select>
+          </label>
+          <label>Zones counted as
+            <select id="map-direction">
+              <option value="pickup">Pickup</option>
+              <option value="dropoff">Dropoff</option>
+            </select>
+          </label>
+        </div>
+        <div id="map" class="map" role="img" aria-label="Map of New York taxi zones coloured by the chosen measure"></div>
+        <p id="map-legend" class="scale card-body"></p>
+        <p class="card-status" role="status"></p>
+      </section>
+    </div>
+
+    <!-- ================================================= sheet: Trips -->
+    <div class="sheet" data-sheet="trips" hidden>
+      <section class="card" data-widget="trips">
+        <h3 class="card-head">Trip explorer <span class="muted">(click a column to sort, a row for details)</span></h3>
+        <div class="table-wrap">
+          <table class="sheet-table clickable">
+            <thead id="trips-head"><tr>
+              <th>#</th>
+              <th><button type="button" data-sort="pickup_ts">Pickup time</button></th>
+              <th>From</th>
+              <th>To</th>
+              <th class="num"><button type="button" data-sort="trip_distance">Miles</button></th>
+              <th class="num"><button type="button" data-sort="duration_min">Minutes</button></th>
+              <th class="num"><button type="button" data-sort="fare_amount">Fare</button></th>
+              <th class="num"><button type="button" data-sort="tip_pct">Tip</button></th>
+              <th class="num"><button type="button" data-sort="avg_speed_mph">mph</button></th>
+              <th>Payment</th>
+            </tr></thead>
+            <tbody id="trips-body"></tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <button type="button" id="trips-prev">Previous</button>
+          <span id="trips-page" class="muted"></span>
+          <button type="button" id="trips-next">Next</button>
+          <label>Rows per page
+            <select id="trips-per-page"><option>25</option><option>50</option><option>100</option></select>
+          </label>
+        </div>
+        <p class="card-status" role="status"></p>
+      </section>
+    </div>
+
+    <!-- ================================================= sheet: Data quality -->
+    <div class="sheet" data-sheet="quality" hidden>
+      <section class="card" data-widget="quality">
+        <h3 class="card-head">Records removed during cleaning</h3>
+        <p id="quality-summary" class="card-body"></p>
+        <div class="table-wrap">
+          <table class="sheet-table clickable">
+            <thead><tr><th>Rule</th><th>What it means</th><th class="num">Rows</th><th class="num">% of raw</th><th>Share</th></tr></thead>
+            <tbody id="quality-body"></tbody>
+          </table>
+        </div>
+        <div id="examples" class="card-body" hidden>
+          <h4 id="examples-title"></h4>
+          <table class="sheet-table">
+            <thead><tr><th class="num">Raw row</th><th>Details</th></tr></thead>
+            <tbody id="examples-body"></tbody>
+          </table>
+        </div>
+        <p class="card-status" role="status"></p>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- ===================================================== status bar + sheet tabs -->
+<footer class="statusbar">
+  <nav class="sheet-tabs" aria-label="Sheets">
+    <button type="button" class="sheet-tab active" data-tab="overview">Overview</button>
+    <button type="button" class="sheet-tab" data-tab="map">Zone map</button>
+    <button type="button" class="sheet-tab" data-tab="trips">Trips</button>
+    <button type="button" class="sheet-tab" data-tab="quality">Data quality</button>
+  </nav>
+  <p class="status-summary" id="status-summary">Ready</p>
+</footer>
+
+<!-- trip detail popup (native dialog: Esc closes it) -->
+<dialog id="trip-dialog" aria-labelledby="trip-title">
+  <div class="card-head dialog-head">
+    <h3 id="trip-title">Trip</h3>
+    <button type="button" id="trip-close" aria-label="Close">Close</button>
+  </div>
+  <div id="trip-detail" class="card-body"></div>
+</dialog>
+</body>
+</html>

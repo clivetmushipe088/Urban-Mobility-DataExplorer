@@ -3,7 +3,7 @@ from contextlib import contextmanager
 
 import config
 
-TABLES = ("zone", "trips", "exclusion_log")
+TABLES = ("zones", "trips", "exclusion_log")
 
 @contextmanager
 def get_connection(path=None):

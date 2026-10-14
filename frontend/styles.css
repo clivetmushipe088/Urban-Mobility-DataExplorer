@@ -1,0 +1,227 @@
+/* CityPulse dashboard styles - a spreadsheet look: white "cells" with thin grey gridlines,
+   square corners, Excel-green accents, a formula bar and a status bar.
+   Colours are tokens on :root so the theme lives in one place. */
+
+:root {
+  color-scheme: light;
+  --workspace: #f3f3f3;       /* grey area around the sheet */
+  --cell: #ffffff;            /* cell / card background */
+  --header: #f3f2f1;          /* column-header grey */
+  --header-hover: #e1dfdd;
+  --gridline: #d4d4d4;        /* cell borders */
+  --gridline-strong: #b3b0ad;
+  --text: #1f1f1f;
+  --text-2: #444444;
+  --muted: #6b6b6b;
+  --green: #217346;           /* Excel brand green */
+  --green-dark: #185c37;
+  --green-tint: #e7f2eb;      /* selected-cell fill */
+  --accent: #217346;
+  --critical: #a4262c;
+  --critical-tint: #fde7e9;
+  --good: #107c10;
+  --gap: 16px;
+  --font: "Segoe UI", Calibri, Aptos, system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; border-radius: 0; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--workspace); color: var(--text); font: 14px/1.45 var(--font);
+  display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; overflow: hidden;
+}
+h1, h2, h3, p { margin: 0; }
+.muted { color: var(--muted); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+
+/* ------------------------------------------------------------------ title bar (green) */
+.titlebar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 16px; background: var(--green); color: #fff;
+}
+.titlebar .brand { display: flex; align-items: center; gap: 10px; }
+.app-icon {
+  width: 24px; height: 24px; display: grid; place-items: center;
+  background: #fff; color: var(--green); font-weight: 700; font-size: 13px;
+}
+.titlebar h1 { font-size: 15px; font-weight: 600; }
+.titlebar .file { opacity: 0.85; font-size: 13px; }
+.connection { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: #c8c8c8; border: 1px solid #fff; }
+.dot.ok { background: #7fd17f; }
+.dot.down { background: #ff8a8a; }
+
+/* ------------------------------------------------------------------ formula bar */
+.formula-bar {
+  display: flex; align-items: stretch; background: var(--cell);
+  border-bottom: 1px solid var(--gridline); font-size: 13px;
+}
+.name-box {
+  width: 120px; padding: 5px 8px; border-right: 1px solid var(--gridline); color: var(--text-2);
+}
+.fx { padding: 5px 10px; font-style: italic; color: var(--muted); border-right: 1px solid var(--gridline); }
+#formula {
+  flex: 1; padding: 5px 10px; font-family: Consolas, "SF Mono", Menlo, monospace;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ------------------------------------------------------------------ layout */
+.app { display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: 0; }
+.sidebar { overflow-y: auto; background: var(--cell); border-right: 1px solid var(--gridline); }
+main { overflow-y: auto; padding: 20px 24px 32px; display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
+
+.pane-title {
+  padding: 8px 16px; background: var(--header); border-bottom: 1px solid var(--gridline);
+  font-size: 13px; font-weight: 600; color: var(--text-2);
+}
+.page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.page-head h2 { font-size: 18px; font-weight: 600; }
+
+/* ------------------------------------------------------------------ filter form */
+#filters { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+#filters label, legend { display: block; font-size: 12px; color: var(--text-2); margin-bottom: 4px; }
+fieldset { border: 0; padding: 0; margin: 0; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pair.dates { grid-template-columns: 1fr; }   /* date pickers will not shrink to half width */
+input, select {
+  width: 100%; padding: 5px 8px; background: var(--cell);
+  border: 1px solid var(--gridline-strong);
+}
+input:focus, select:focus { border-color: var(--green); outline: none; box-shadow: inset 0 0 0 1px var(--green); }
+.hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.form-error { color: var(--critical); font-size: 13px; }
+.actions { display: flex; gap: 8px; margin-top: 4px; }
+button {
+  padding: 6px 14px; border: 1px solid var(--gridline-strong); background: var(--cell); cursor: pointer;
+}
+button:hover { background: var(--header); }
+button.primary { background: var(--green); border-color: var(--green); color: #fff; font-weight: 600; }
+button.primary:hover { background: var(--green-dark); }
+button:disabled { opacity: 0.5; cursor: default; }
+
+/* ------------------------------------------------------------------ message bar */
+.banner {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 8px 12px; background: var(--critical-tint); border: 1px solid var(--critical);
+  color: var(--critical);
+}
+.banner[hidden] { display: none; }
+
+/* ------------------------------------------------------------------ cards & KPI cells */
+.card { background: var(--cell); border: 1px solid var(--gridline); min-width: 0; }
+.card-head {
+  padding: 6px 12px; background: var(--header); border-bottom: 1px solid var(--gridline);
+  font-size: 13px; font-weight: 600; color: var(--text-2);
+}
+.card-body { padding: 12px; }
+
+.kpis {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  border-top: 1px solid var(--gridline); border-left: 1px solid var(--gridline);
+}
+.tile { background: var(--cell); border-right: 1px solid var(--gridline); border-bottom: 1px solid var(--gridline); }
+.tile:hover { box-shadow: inset 0 0 0 2px var(--green); }     /* "selected cell" */
+.tile .label {
+  padding: 4px 10px; background: var(--header); border-bottom: 1px solid var(--gridline);
+  color: var(--text-2); font-size: 12px; text-align: center;
+}
+.tile .value { padding: 10px 12px 0; font-size: 26px; font-weight: 600; text-align: right; }
+.tile .sub { padding: 0 12px 10px; color: var(--muted); font-size: 12px; text-align: right; }
+
+/* status line under each widget: loading / empty / error messages */
+.card-status { grid-column: 1 / -1; padding: 6px 10px; color: var(--text-2); font-size: 13px;
+  background: var(--cell); border-right: 1px solid var(--gridline); border-bottom: 1px solid var(--gridline); }
+.card-status:empty { display: none; }
+.card-status.error { color: var(--critical); }
+.card-status button { margin-left: 8px; padding: 1px 10px; }
+
+/* loading shimmer on values while a request is running */
+.is-loading .value {
+  color: transparent; margin: 10px 12px 0; padding: 0; min-height: 28px;
+  background: linear-gradient(90deg, #eeeeee 25%, #f8f8f8 50%, #eeeeee 75%);
+  background-size: 200% 100%; animation: shimmer 1.2s infinite;
+}
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .is-loading .value { animation: none; } }
+
+/* ------------------------------------------------------------------ sheets & chart cards (Part 7) */
+.sheet { display: flex; flex-direction: column; gap: var(--gap); }
+.sheet[hidden] { display: none; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: var(--gap); }
+.card .card-status { border: 0; border-top: 1px solid var(--gridline); }
+.card-head .muted { font-weight: 400; }
+.chart-box { position: relative; height: 280px; }
+.highlights { margin: 0; padding: 12px 12px 12px 32px; display: flex; flex-direction: column; gap: 10px; }
+
+/* heatmap: 1 label column + 24 hour columns, 1 header row + 7 day rows */
+.heatmap { display: grid; grid-template-columns: 34px repeat(24, minmax(0, 1fr)); gap: 1px; }
+.hm-col, .hm-row { font-size: 11px; color: var(--muted); text-align: center; }
+.hm-row { text-align: left; align-self: center; }
+.hm-cell { height: 24px; outline: 1px solid rgba(0, 0, 0, 0.04); }
+.hm-cell:hover { outline: 2px solid var(--text); position: relative; }
+
+/* colour-scale legend (heatmap + map) */
+.scale { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: var(--text-2); }
+.scale-swatches { display: inline-flex; }
+.scale-swatches span { width: 22px; height: 12px; }
+
+/* spreadsheet tables: grey header row, grey row-number column, thin gridlines */
+.table-wrap { overflow-x: auto; }
+.sheet-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sheet-table th, .sheet-table td { border: 1px solid var(--gridline); padding: 4px 8px; text-align: left; white-space: nowrap; }
+.sheet-table thead th { background: var(--header); font-weight: 600; color: var(--text-2); position: sticky; top: 0; }
+.sheet-table tbody th { background: var(--header); color: var(--muted); font-weight: 400; text-align: center; width: 1%; }
+.sheet-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.sheet-table tbody tr:hover td { background: var(--green-tint); }
+.sheet-table.clickable tbody tr { cursor: pointer; }
+.sheet-table thead button {
+  padding: 0; border: 0; background: none; font-weight: 600; color: inherit; cursor: pointer;
+}
+.sheet-table thead button::after { content: attr(data-arrow); margin-left: 4px; color: var(--green); }
+.sheet-table code { font-size: 12px; }
+.bar-cell { width: 30%; }
+.databar { display: block; height: 14px; min-width: 2px; background: linear-gradient(90deg, #63be7b, #c6e8cf); }
+
+.pager { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 12px; border-top: 1px solid var(--gridline); }
+.pager label { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.pager select, .toolbar select { width: auto; }
+
+/* map sheet */
+.toolbar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-weight: 400; }
+.toolbar > span { font-weight: 600; margin-right: auto; }
+.toolbar label { display: flex; align-items: center; gap: 6px; }
+.map { height: 560px; background: var(--cell); }
+.leaflet-tooltip { border-radius: 0; font: 13px var(--font); }
+
+/* trip detail popup */
+dialog { padding: 0; border: 1px solid var(--gridline-strong); width: min(480px, 92vw); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); }
+dialog::backdrop { background: rgba(0, 0, 0, 0.25); }
+.dialog-head { display: flex; justify-content: space-between; align-items: center; }
+dialog dl { display: grid; grid-template-columns: 130px 1fr; margin: 0; border-top: 1px solid var(--gridline); border-left: 1px solid var(--gridline); }
+dialog dt, dialog dd { margin: 0; padding: 5px 8px; border-right: 1px solid var(--gridline); border-bottom: 1px solid var(--gridline); }
+dialog dt { background: var(--header); color: var(--text-2); }
+
+/* ------------------------------------------------------------------ status bar + sheet tabs */
+.statusbar {
+  display: flex; justify-content: space-between; align-items: stretch; gap: 12px;
+  background: var(--header); border-top: 1px solid var(--gridline); font-size: 12px; color: var(--text-2);
+}
+.sheet-tabs { display: flex; }
+.sheet-tab { padding: 4px 16px; border: 0; border-right: 1px solid var(--gridline); background: none; font-size: 12px; color: var(--text-2); }
+.sheet-tab:hover { background: var(--header-hover); }
+.sheet-tab.active {
+  background: var(--cell); color: var(--green); font-weight: 600; border-bottom: 2px solid var(--green);
+}
+.status-summary { display: flex; gap: 20px; padding: 4px 16px; align-items: center; white-space: pre; }
+
+/* ------------------------------------------------------------------ small screens */
+@media (max-width: 900px) {
+  body { display: block; overflow: auto; }
+  .app { grid-template-columns: 1fr; }
+  .sidebar { border-right: 0; border-bottom: 1px solid var(--gridline); }
+  main { padding: 16px; overflow: visible; }
+  .titlebar .file, .name-box { display: none; }
+  .grid-2 { grid-template-columns: 1fr; }
+  .map { height: 420px; }
+}

@@ -39,6 +39,12 @@ CREATE TABLE IF NOT EXISTS exclusion_log (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_trips_pickup_ts ON trips(pickup_ts);
 CREATE INDEX IF NOT EXISTS idx_trips_pickup_zone ON trips(pickup_zone_id);
 CREATE INDEX IF NOT EXISTS idx_trips_dropoff_zone ON trips(dropoff_zone_id);
 CREATE INDEX IF NOT EXISTS idx_trips_pickup_date ON trips(pickup_date);

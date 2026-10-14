@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 470" font-family="Segoe UI, Calibri, Helvetica, Arial, sans-serif" font-size="13">
+  <title>CityPulse system architecture</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#444444"/>
+    </marker>
+    <style>
+      .box { fill: #ffffff; stroke: #b3b0ad; stroke-width: 1; }
+      .head { fill: #f3f2f1; stroke: #b3b0ad; stroke-width: 1; }
+      .title { font-weight: 600; fill: #1f1f1f; }
+      .text { fill: #444444; }
+      .muted { fill: #6b6b6b; font-size: 12px; }
+      .green { fill: #217346; }
+      .line { stroke: #444444; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+      .label { fill: #217346; font-size: 12px; font-weight: 600; }
+    </style>
+  </defs>
+
+  <!-- column 1: raw TLC files -->
+  <rect class="head" x="20" y="40" width="200" height="30"/>
+  <text class="title" x="32" y="60">1. Raw TLC files</text>
+  <rect class="box" x="20" y="70" width="200" height="200"/>
+  <text class="text" x="32" y="98">yellow_tripdata_2019-01</text>
+  <text class="muted" x="32" y="116">.parquet, 7.7M trips (fact)</text>
+  <text class="text" x="32" y="150">taxi_zone_lookup.csv</text>
+  <text class="muted" x="32" y="168">265 zones (dimension)</text>
+  <text class="text" x="32" y="202">taxi_zones.zip</text>
+  <text class="muted" x="32" y="220">shapefile, State Plane feet</text>
+  <text class="muted" x="32" y="252">convert_zones.py -&gt; GeoJSON</text>
+
+  <!-- column 2: pipeline -->
+  <rect class="head" x="260" y="40" width="200" height="30"/>
+  <text class="title" x="272" y="60">2. pipeline.py (pandas)</text>
+  <rect class="box" x="260" y="70" width="200" height="200"/>
+  <text class="text" x="272" y="98">extract in 250k-row batches</text>
+  <text class="text" x="272" y="124">clean: 10 rules, in order</text>
+  <text class="text" x="272" y="150">log every removed row</text>
+  <text class="text" x="272" y="176">derive 4 features</text>
+  <text class="text" x="272" y="202">zone centroids from GeoJSON</text>
+  <text class="text" x="272" y="228">keep 20% random sample</text>
+  <text class="muted" x="272" y="254">bulk insert + ANALYZE</text>
+
+  <!-- column 3: database -->
+  <rect class="head" x="500" y="40" width="200" height="30"/>
+  <text class="title" x="512" y="60">3. SQLite database</text>
+  <rect class="box" x="500" y="70" width="200" height="200"/>
+  <text class="text" x="512" y="98">zones</text>
+  <text class="muted" x="512" y="116">dimension + map centroid</text>
+  <text class="text" x="512" y="146">trips</text>
+  <text class="muted" x="512" y="164">fact, 1.46M rows, FKs to zones</text>
+  <text class="text" x="512" y="194">exclusion_log</text>
+  <text class="muted" x="512" y="212">audit trail of removed rows</text>
+  <text class="text" x="512" y="242">meta</text>
+  <text class="muted" x="512" y="260">sample rate, row counts</text>
+
+  <!-- column 4: API -->
+  <rect class="head" x="740" y="40" width="160" height="30"/>
+  <text class="title" x="752" y="60">4. Flask REST API</text>
+  <rect class="box" x="740" y="70" width="160" height="200"/>
+  <text class="text" x="752" y="98">app.py: 15 endpoints</text>
+  <text class="text" x="752" y="124">filters.py</text>
+  <text class="muted" x="752" y="142">params -&gt; safe WHERE</text>
+  <text class="text" x="752" y="170">top_k.py</text>
+  <text class="muted" x="752" y="188">hand-written min-heap</text>
+  <text class="text" x="752" y="216">response cache</text>
+  <text class="muted" x="752" y="234">warmed at start-up</text>
+  <text class="muted" x="752" y="258">port 5001</text>
+
+  <!-- column 5: browser -->
+  <rect class="head" x="940" y="40" width="160" height="30"/>
+  <text class="title" x="952" y="60">5. Dashboard</text>
+  <rect class="box" x="940" y="70" width="160" height="200"/>
+  <text class="text" x="952" y="98">HTML + CSS + JS</text>
+  <text class="muted" x="952" y="116">no framework, no build</text>
+  <text class="text" x="952" y="146">app.js  filters, KPIs</text>
+  <text class="text" x="952" y="172">charts.js  Chart.js,</text>
+  <text class="text" x="952" y="190">  heatmap, Leaflet map</text>
+  <text class="text" x="952" y="216">tables.js  routes, trips,</text>
+  <text class="text" x="952" y="234">  data quality, tabs</text>
+  <text class="muted" x="952" y="258">port 8080</text>
+
+  <!-- arrows -->
+  <path class="line" d="M220,170 L258,170"/>
+  <path class="line" d="M460,170 L498,170"/>
+  <path class="line" d="M700,150 L738,150"/>
+  <text class="label" x="704" y="140">SQL</text>
+  <path class="line" d="M900,130 L938,130"/>
+  <text class="label" x="902" y="122">JSON</text>
+  <path class="line" d="M938,200 L902,200"/>
+  <text class="label" x="902" y="218">GET</text>
+
+  <!-- request lifecycle -->
+  <rect class="head" x="20" y="310" width="1080" height="30"/>
+  <text class="title" x="32" y="330">One request, end to end</text>
+  <rect class="box" x="20" y="340" width="1080" height="110"/>
+  <text class="text" x="32" y="368">1. The user picks filters (e.g. Bronx, fare 10-30) and clicks Apply. The formula bar shows them; every widget re-requests in parallel.</text>
+  <text class="text" x="32" y="394">2. Each GET /api/... goes through filters.py, which turns the query string into a parameterised WHERE clause (bad input -&gt; HTTP 400).</text>
+  <text class="text" x="32" y="420">3. SQLite aggregates on indexed columns; counts are scaled x5 for the 20% sample; /top-routes ranks the groups with top_k().</text>
+  <text class="text" x="32" y="446">4. JSON comes back, is cached by URL, and the browser redraws only that widget. One failing widget shows its own error and Retry.</text>
+</svg>

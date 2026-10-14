@@ -4,6 +4,7 @@ import re
 import time 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 
@@ -224,18 +225,20 @@ def find_file(pattern: str) -> Path | None:
     matches = sorted(config.DATA_DIR.glob(pattern))
     return matches[0] if matches else None
 
-def run_pipeline(trip_file: Path, limit: int | None = None, reset: bool = False) -> dict:
+def run_pipeline(trip_file: Path, limit: int | None = None, reset: bool = False, sample_rate: float = config.SAMPLE_RATE) -> dict:
 
     started = time.time()
     db.init_db(reset=reset)
     period = file_month(trip_file)
-    totals, read, kept = {}, 0, 0
+    rng = np.random.default_rng(config.SAMPLE_SPEED)
+    totals, read, kept, stored = {}, 0, 0, 0
 
     with db.get_connection() as conn:
         conn.execute("PRAGMA synchronous = OFF")
         conn.execute("DELETE FROM trips")
         conn.execute("DELETE FROM exclusion_log")
         conn.execute("DELETE FROM zones")
+        conn.execute("DELETE FROM meta")
 
         zones = read_zones(config.ZONES_CSV)
         load_zones(conn, zones, zone_centroids(find_file(config.GEOJSON_GLOB)))
@@ -247,27 +250,33 @@ def run_pipeline(trip_file: Path, limit: int | None = None, reset: bool = False)
                 ts = pd.to_datetime(batch["pickup_ts"], errors="coerce")
                 period = (int(ts.dt.year.mode()[0]), int(ts.dt.month.mode()[0]))
             clean_df, exclusions = clean(batch, valid_ids, *period)
-            load_trips(conn, add_features(clean_df))
+            sample = clean_df[rng.random(len(clean_df)) < sample_rate]
+            load_trips(conn, add_features(sample))
             log_exclusions(conn, trip_file.name, exclusions, totals)
             conn.commit()
             read += len(batch)
             kept += len(clean_df)
-            print(f" processed {read:,} rows ({kept:,} kept)")
+            stored += len(sample)
+            print(f"  processed {read:,} rows ({kept:,} clean, {stored:,} stored)")
 
         conn.executemany(
             "INSERT INTO exclusion_log (source_file, row_index, reason, details) "
             "VALUES (?, NULL, ?, ?)",
             [(trip_file.name, f"summary:{r}", str(n)) for r, n in totals.items()],
         )
+        facts = {"source_file": trip_file.name, "rows_read": read, "rows_clean": kept, "rows_stored": stored, "sample_rate": sample_rate}
+        conn.executemany("INSERT INTO meta VALUES (?, ?)", [(k, str(v)) for k, v in facts.items()])
         conn.commit()
+        conn.execute("ANALYZE")
 
     excluded = read - kept
     print(f"\n{'reason':<24}{'rows':>12}{'% of read' :>12}")
     for reason, count in totals.items():
         print(f"{reason:<24}{count:>12,}{count / max(read, 1) * 100:>11.2f}%")
     print(f"{'-' * 48}\n{'read':<24}{read:>12,}\n{'kept':<24}{kept:>12,}"
-          f"\n{'excluded':<24}{excluded:>12,}\nfinished in {time.time() - started:.1f}s")
-    return {"zones": len(zones), "read": read, "trips": kept, "excluded": excluded}
+          f"\n{'excluded':<24}{excluded:>12,}\n{'stored (sample)':<24}{stored:>12,}"
+          f"\nfinished in {time.time() - started:.1f}s")
+    return {"zones": len(zones), "read": read, "clean": kept, "stored": stored, "excluded": excluded}
 
 
 def main() -> None:
@@ -275,13 +284,16 @@ def main() -> None:
     parser.add_argument("--file", type=Path, help="parquet file (default: first in data/)")
     parser.add_argument("--limit", type=int, help="only process the first N rows")
     parser.add_argument("--reset", action="store_true", help="delete and recreate the DB file")
+    parser.add_argument("--sample-rate", type=float, default=config.SAMPLE_RATE, help="share of clean trips to store, 0-1 (default %(default)s)")
     args = parser.parse_args()
 
     trip_file = args.file or find_file(config.TRIPS_GLOB)
     if trip_file is None or not config.ZONES_CSV.exists():
         raise SystemExit(f"Put yellow_tripdata_*.parquet and taxi_zone_lookup.csv in "
                          f"{config.DATA_DIR}")
-    run_pipeline(trip_file, args.limit, args.reset)
+    if not 0 < args.sample_rate <= 1:
+        raise SystemExit("--sample-rate must be between 0 and 1")
+    run_pipeline(trip_file, args.limit, args.reset, args.sample_rate)
 
 
 if __name__ == "__main__":
